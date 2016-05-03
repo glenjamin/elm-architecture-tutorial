@@ -11,35 +11,54 @@ import Time exposing (Time, second)
 
 -- MODEL
 
+
 type alias Model =
-    { angle : Float
-    , animationState : AnimationState
-    }
+  { angle : Float
+  , animationState : AnimationState
+  }
 
 
 type alias AnimationState =
-    Maybe { prevClockTime : Time, elapsedTime : Time }
+  Maybe { prevClockTime : Time, elapsedTime : Time, count : Int }
 
 
-init : (Model, Effects Action)
+init : ( Model, Effects Action )
 init =
   ( { angle = 0, animationState = Nothing }
   , Effects.none
   )
 
 
-rotateStep = 90
-duration = second
+rotateStep : Float
+rotateStep =
+  90
+
+
+duration : Time
+duration =
+  second
+
 
 
 -- UPDATE
 
+
 type Action
-    = Spin
-    | Tick Time
+  = Spin
+  | Tick Time
 
 
-update : Action -> Model -> (Model, Effects Action)
+addCounter : Model -> Model
+addCounter model =
+  case model.animationState of
+    Nothing ->
+      model
+
+    Just a ->
+      { model | animationState = Just { a | count = a.count + 1 } }
+
+
+update : Action -> Model -> ( Model, Effects Action )
 update msg model =
   case msg of
     Spin ->
@@ -47,34 +66,49 @@ update msg model =
         Nothing ->
           ( model, Effects.tick Tick )
 
-        Just _ ->
-          ( model, Effects.none )
+        Just a ->
+          ( addCounter model, Effects.none )
 
     Tick clockTime ->
       let
+        count =
+          Maybe.withDefault 0 (Maybe.map .count model.animationState)
+
         newElapsedTime =
           case model.animationState of
             Nothing ->
               0
 
-            Just {elapsedTime, prevClockTime} ->
+            Just { elapsedTime, prevClockTime } ->
               elapsedTime + (clockTime - prevClockTime)
+
+        fullAngle =
+          model.angle + rotateStep
       in
         if newElapsedTime > duration then
-          ( { angle = model.angle + rotateStep
-            , animationState = Nothing
-            }
-          , Effects.none
-          )
+          if count > 0 then
+            ( { angle = fullAngle
+              , animationState = Just { elapsedTime = 0, prevClockTime = clockTime, count = count - 1 }
+              }
+            , Effects.tick Tick
+            )
+          else
+            ( { angle = fullAngle
+              , animationState = Nothing
+              }
+            , Effects.none
+            )
         else
           ( { angle = model.angle
-            , animationState = Just { elapsedTime = newElapsedTime, prevClockTime = clockTime }
+            , animationState = Just { elapsedTime = newElapsedTime, prevClockTime = clockTime, count = count }
             }
           , Effects.tick Tick
           )
 
 
+
 -- VIEW
+
 
 toOffset : AnimationState -> Float
 toOffset animationState =
@@ -82,7 +116,7 @@ toOffset animationState =
     Nothing ->
       0
 
-    Just {elapsedTime} ->
+    Just { elapsedTime } ->
       ease easeOutBounce float 0 rotateStep duration elapsedTime
 
 
@@ -94,7 +128,8 @@ view address model =
   in
     svg
       [ width "200", height "200", viewBox "0 0 200 200" ]
-      [ g [ transform ("translate(100, 100) rotate(" ++ toString angle ++ ")")
+      [ g
+          [ transform ("translate(100, 100) rotate(" ++ toString angle ++ ")")
           , onClick (Signal.message address Spin)
           ]
           [ rect
