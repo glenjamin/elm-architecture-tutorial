@@ -1,4 +1,4 @@
-module RandomGif where
+module RandomGif (..) where
 
 import Effects exposing (Effects, Never)
 import Html exposing (..)
@@ -11,31 +11,39 @@ import Task
 
 -- MODEL
 
+
 type alias Model =
-    { topic : String
-    , gifUrl : String
-    }
+  { topic : String
+  , gifUrl : String
+  }
 
 
-init : String -> (Model, Effects Action)
+waiting : String
+waiting =
+  "assets/waiting.gif"
+
+
+init : String -> ( Model, Effects Action )
 init topic =
-  ( Model topic "assets/waiting.gif"
+  ( Model topic waiting
   , getRandomGif topic
   )
 
 
+
 -- UPDATE
 
+
 type Action
-    = RequestMore
-    | NewGif (Maybe String)
+  = RequestMore
+  | NewGif (Maybe String)
 
 
-update : Action -> Model -> (Model, Effects Action)
+update : Action -> Model -> ( Model, Effects Action )
 update action model =
   case action of
     RequestMore ->
-      (model, getRandomGif model.topic)
+      ( { model | gifUrl = waiting }, getRandomGif model.topic )
 
     NewGif maybeUrl ->
       ( Model model.topic (Maybe.withDefault model.gifUrl maybeUrl)
@@ -43,16 +51,20 @@ update action model =
       )
 
 
+
 -- VIEW
 
-(=>) = (,)
+
+(=>) =
+  (,)
 
 
 view : Signal.Address Action -> Model -> Html
 view address model =
-  div [ style [ "width" => "200px" ] ]
-    [ h2 [headerStyle] [text model.topic]
-    , div [imgStyle model.gifUrl] []
+  div
+    [ style [ "width" => "200px" ] ]
+    [ h2 [ headerStyle ] [ text model.topic ]
+    , div [ imgStyle model.gifUrl ] []
     , button [ onClick address RequestMore ] [ text "More Please!" ]
     ]
 
@@ -77,7 +89,9 @@ imgStyle url =
     ]
 
 
+
 -- EFFECTS
+
 
 getRandomGif : String -> Effects Action
 getRandomGif topic =
@@ -89,7 +103,8 @@ getRandomGif topic =
 
 randomUrl : String -> String
 randomUrl topic =
-  Http.url "http://api.giphy.com/v1/gifs/random"
+  Http.url
+    "http://api.giphy.com/v1/gifs/random"
     [ "api_key" => "dc6zaTOxFJmzC"
     , "tag" => topic
     ]
@@ -97,4 +112,4 @@ randomUrl topic =
 
 decodeUrl : Json.Decoder String
 decodeUrl =
-  Json.at ["data", "image_url"] Json.string
+  Json.at [ "data", "image_url" ] Json.string
